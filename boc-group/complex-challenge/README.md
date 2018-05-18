@@ -11,16 +11,22 @@ We used Flask and Python (3.6) to develop this project.
 
 ## Usage
 
-To run this, you must install python 3.6 and pipeenv using **brew**
+To run this, you must install python 3.6 and pipenv using **brew**
 
 > If you don't have brew you can install it by going to their website: https://brew.sh/
 
 ```shel
-$ brew install python pipeenv
+$ brew install python pipenv
 ```
 
 
 After installing those two dependencies, run ```$ pipenv install``` to install all necessary requirements.
+
+It's also required to create a **".env"** file containing your developer id:
+
+```text
+DEVELOPER_ID=<DEVELOPER IDENTIFIER>
+```
 
 
 Now we just need to run the Flask server like so:
@@ -36,13 +42,6 @@ $ pipenv run python manage.py runserver --port=5000
  * Restarting with stat
  * Debugger is active!
 ```
-
-Also, you need to create a **".env"** file containing your developer id:
-
-```text
-DEVELOPER_ID=<DEVELOPER IDENTIFIER>
-```
-
 
 
 
