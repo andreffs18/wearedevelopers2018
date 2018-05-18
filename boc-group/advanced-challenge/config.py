@@ -7,7 +7,7 @@ from flask_dotenv import DotEnv
 class BaseConfig(object):
     DEBUG = True
     TESTING = False
-    MACHINE_NAME = "Complex Challenge"
+    MACHINE_NAME = "Advanced Challenge"
     SECRET_KEY = os.environ.get("SECRET_KEY", "SECRETTZ")
     DEVELOPER_ID = os.environ.get('DEVELOPER_ID', '')
 
