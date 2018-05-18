@@ -10,12 +10,12 @@ We used Python (3.6) to develop the API client that makes all requests.
 
 ## Usage
 
-To run this, you must install python 3.6 and pipeenv using **brew**
+To run this, you must install python 3.6 and pipenv using **brew**
 
 > If you don't have brew you can install it by going to their website: https://brew.sh/
 
 ```shel
-$ brew install python pipeenv
+$ brew install python pipenv
 ```
 
 
