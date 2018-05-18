@@ -2,7 +2,7 @@
 
 Here you can find all files that were required to complete the second challenge of Boc Group.
 
-![](/screenshot.png)
+![](screenshot.png)
 
 ## Stack
 
