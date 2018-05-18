@@ -1,0 +1,447 @@
+{% extends "base.html" %}
+{% block title%}{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="https://openlayers.org/en/v4.6.5/css/ol.css" type="text/css">
+<script src="https://openlayers.org/en/v4.6.5/build/ol.js"></script>
+
+<style>
+    .loader {
+        border: 8px solid #f3f3f3;
+        border-radius: 50%;
+        border-top: 8px solid #3498db;
+        width: 60px;
+        height: 60px;
+        -webkit-animation: spin 2s linear infinite; /* Safari */
+        animation: spin 2s linear infinite;
+        opacity: 0.3;
+        filter: alpha(opacity=30);
+        margin: 50% auto;
+
+    }
+
+    /* Safari */
+    @-webkit-keyframes spin {
+        0% {
+            -webkit-transform: rotate(0deg);
+        }
+        100% {
+            -webkit-transform: rotate(360deg);
+        }
+    }
+
+    @keyframes spin {
+        0% {
+            transform: rotate(0deg);
+        }
+        100% {
+            transform: rotate(360deg);
+        }
+    }
+
+    .fullscreen:-moz-full-screen {
+        height: 100%;
+    }
+
+    .fullscreen:-webkit-full-screen {
+        height: 100%;
+    }
+
+    .fullscreen:-ms-fullscreen {
+        height: 100%;
+    }
+
+    .fullscreen:fullscreen {
+        height: 100%;
+    }
+
+    .fullscreen {
+        margin-bottom: 10px;
+        width: 100%;
+        height: 768px;
+        position: relative;
+    }
+
+    .ol-rotate {
+        top: 3em;
+    }
+
+    .ol-full-screen {
+        left: .5em;
+        top: 4.5em;
+        right: unset;
+    }
+
+    .ol-attribution{
+        display: none;
+    }
+
+    .map {
+        width: 100%;
+        height: 100%;
+        position: absolute;
+        z-index: 9;
+    }
+
+    .sidepanel {
+        background: #2b3e50;
+        width: 30%;
+        height: 100%;
+        position: absolute;
+        opacity: 0.8;
+        z-index: 10;
+        right: 0;
+    }
+
+    .sidepanel-title {
+        width: 100%;
+        font-size: 3em;
+        color: #ffffff;
+        display: block;
+        text-align: center;
+        opacity: 1;
+        padding-top: 10px;
+    }
+
+    .sidepanel > ul {
+        color: white;
+        overflow-y: scroll;
+        height: 100%;
+        width: 100%;
+        list-style-type: none;
+        opacity: 1;
+    }
+    .sidepanel li {
+        list-style-type: none;
+        opacity: 1;
+    }
+
+    .container {
+        width: 100%;
+        padding: 0;
+    }
+</style>
+{% endblock %}
+
+
+{% block body %}
+<div class="container">
+    <div id="fullscreen" class="fullscreen">
+        <div id="map" class="map"></div>
+        <div class="sidepanel">
+            <span class="sidepanel-title"></span>
+            <hr>
+            <ul></ul>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+
+{% block extrajs %}
+<script type="text/javascript">
+
+$location_vienna = [16.415446, 48.233451];
+$title = $('h2.title');
+$panel_title = $('.sidepanel-title');
+$panel_body = $('.sidepanel > ul');
+$loader = '<div class="loader"></div>';
+
+
+var get_locations = function () {
+    console.log("Getting locations...");
+    $.ajax({
+        type: 'GET',
+        url: '/api/v1/locations',
+        dataType: 'json',
+        success: function (data) {
+            var locations = data.locations;
+            console.log("Got " + locations.length + " locations!");
+            $panel_body.empty().append('<ul></ul>');
+            $title.text('All Locations');
+            $panel_title .text("Locations");
+            $.each(locations, function (i, location) {
+                console.log(location);
+                setTimeout(addFeature(location.longitude, location.latitude), 1500);
+                var ul = "<ul><li>" + location.description + "</li></ul>";
+                var server = " Servers";
+                if (location.servers.length == 1) server = " Server";
+                var html =
+                    "<li>" +
+                    "<strong><a href='#' class='location' data-location='" + location.id + "'>" + location.name + "</a></strong> " +
+                    "<small>(" + location.servers.length + server + ")</small>" + ul +
+                    "</li>";
+                $panel_body.append(html)
+            });
+        }
+    });
+};
+
+
+var get_location = function(location_id) {
+    console.log("Getting location \"" + location_id + "\"information...");
+    $.ajax({
+        type: 'GET',
+        url: '/api/v1/locations/' + location_id,
+        dataType: 'json',
+        success: function (data) {
+            var location = data.location;
+            console.log("Got " + location.id + "!");
+            $panel_body.empty().append('<ul></ul>');
+            var html = "<li><strong>" + location.description + "</strong></li>";
+            html += "<li>Latitude: "+ location.latitude + "</li>";
+            html += "<li>Longitude: "+ location.longitude + "</li>";
+            html += "<li>Available Servers: </li>";
+            html += "<ul>";
+            if(location.servers.length == 0){
+                html += "<li>No servers available</li>";
+            }
+            $.each(location.servers, function(i, server){
+                html += "<li><a href='#' class='server' data-location='" + location.id + "' data-server='" + server.id + "'>" + server.name + "</a></li>";
+            });
+            html += "</ul>";
+
+            html += '<hr><li><a href="#" class="back" data-next="location">< Go Back</a></li>';
+            $title.text(location.name);
+            $panel_title.text(location.name);
+            $panel_body.append(html);
+
+            flyTo(ol.proj.fromLonLat([location.longitude, location.latitude]), function() {});
+        }
+    });
+};
+
+
+var get_server = function(location_id, server_id) {
+    console.log("Getting server \"" + server_id + "\"information...");
+    $.ajax({
+        type: 'GET',
+        url: '/api/v1/servers/' + server_id,
+        dataType: 'json',
+        success: function (data) {
+            var server = data.server;
+            console.log("Got " + server.id + "!");
+            $panel_body.empty().append('<ul></ul>');
+
+            var html = "<li><strong>" + server.description + "</strong></li>";
+            html += "<li>Available Applications: </li>";
+            html += "<ul>";
+            if(server.applications.length == 0){
+                html += "<li>No applications available</li>";
+            }
+            $.each(server.applications, function(i, application){
+                html += "<li><a href='#' class='application' data-location='" + location_id + "' data-server='" + server.id + "' data-application='" + application.id + "'>" + application.name + "</a></li>";
+            });
+            html += "</ul>";
+
+            html += '<hr><li><a href="#" class="back" data-next="location" data-location="' + location_id + '">< Go Back</a></li>';
+            $title.text(server.name);
+            $panel_title.text(server.name);
+            $panel_body.append(html);
+        }
+    });
+};
+
+
+var get_application = function(location_id, server_id, application_id) {
+    console.log("Getting application \"" + application_id + "\"information...");
+    $.ajax({
+        type: 'GET',
+        url: '/api/v1/applications/' + application_id,
+        dataType: 'json',
+        success: function (data) {
+            var application = data.application;
+            console.log("Got " + application.id + "!");
+            $panel_body.empty().append('<ul></ul>');
+            var html = "<li><strong>" + application.description + "</strong></li>";
+            html += "<li>Category: " + application.category + "</li>";
+            html += "<hr>";
+            html += "<li>Investment cost: " + application.investment_cost + "$</li>";
+            html += "<li>Operating cost: " + application.operating_cost + "$</li>";
+
+            html += '<hr><li><a href="#" class="back" data-next="server" data-location="' + location_id + '" data-server="' + server_id + '">< Go Back</a></li>';
+            $title.text(application.name);
+            $panel_title.text(application.name);
+            $panel_body.append(html)
+        }
+    });
+};
+
+
+var view = new ol.View({
+    center: ol.proj.fromLonLat($location_vienna),
+    zoom: 5
+})
+
+
+var map = new ol.Map({
+    target: 'map',
+    layers: [
+        new ol.layer.Tile({
+            source: new ol.source.OSM()
+        })
+    ],
+    view: view,
+    controls: ol.control.defaults().extend([
+        new ol.control.FullScreen({
+            source: 'fullscreen',
+        })
+    ]),
+});
+
+
+var source = new ol.source.Vector({wrapX: false});
+
+
+var vector = new ol.layer.Vector({source: source});
+map.addLayer(vector);
+
+function addFeature(longitude, latitude) {
+    var geom = new ol.geom.Point(ol.proj.fromLonLat([longitude, latitude]));
+    geom.on('click', function(e){
+        console.log("GEO EVENT!")
+    });
+    var feature = new ol.Feature(geom);
+    feature.on('click', function(e){
+        console.log("FEATURE EVENT!")
+    });
+    feature.setStyle(new ol.style.Style({
+        image: new ol.style.Icon(({
+            color: '#2b3e50',
+            crossOrigin: 'anonymous',
+            src: 'https://openlayers.org/en/v4.6.5/examples/data/dot.png'
+        }))
+    }));
+
+    source.addFeature(feature);
+
+    source.on('click', function(e){
+        console.log("looool")
+    });
+
+}
+
+var duration = 3000;
+function flash(feature) {
+    var start = new Date().getTime();
+    var listenerKey;
+
+    function animate(event) {
+        var vectorContext = event.vectorContext;
+        var frameState = event.frameState;
+        var flashGeom = feature.getGeometry().clone();
+        var elapsed = frameState.time - start;
+        var elapsedRatio = elapsed / duration;
+        // radius will be 5 at start and 30 at end.
+        var radius = ol.easing.easeOut(elapsedRatio) * 25 + 5;
+        var opacity = ol.easing.easeOut(1 - elapsedRatio);
+
+        var style = new ol.style.Style({
+            image: new ol.style.Circle({
+                radius: radius,
+                snapToPixel: true,
+                stroke: new ol.style.Stroke({
+                    color: 'rgba(2, 117, 216, ' + opacity + ')',
+                    width: 3 * opacity
+                })
+            }),
+            color: 'red',
+        });
+
+        vectorContext.setStyle(style);
+        vectorContext.drawGeometry(flashGeom);
+        if (elapsed > duration) {
+            ol.Observable.unByKey(listenerKey);
+            return;
+        }
+        // tell OpenLayers to continue postcompose animation
+        map.render();
+    }
+
+    listenerKey = map.on('postcompose', animate);
+}
+
+source.on('addfeature', function (e) {
+    flash(e.feature);
+});
+
+function flyTo(location, done) {
+    var duration = 2000;
+    var zoom = view.getZoom();
+    var parts = 2;
+    var called = false;
+    function callback(complete) {
+      --parts;
+      if (called) {
+        return;
+      }
+      if (parts === 0 || !complete) {
+        called = true;
+        done(complete);
+      }
+    }
+    view.animate({
+      center: location,
+      duration: duration
+    }, callback);
+    view.animate({
+      zoom: zoom - 1,
+      duration: duration / 2
+    }, {
+      zoom: zoom,
+      duration: duration / 2
+    }, callback);
+  }
+
+setTimeout(get_locations(), 1000);
+
+// click on location
+$('body').on('click', 'a.location', function (e) {
+    var location_id = $(this).data('location');
+    console.log(location_id);
+    $panel_body.empty().append($loader);
+    get_location(location_id)
+});
+
+// click on servers
+$('body').on('click', 'a.server', function (e) {
+    var server_id = $(this).data('server');
+    var location_id = $(this).data('location');
+    console.log(server_id);
+    $panel_body.empty().append($loader);
+    get_server(location_id, server_id)
+});
+
+// click on applications
+$('body').on('click', 'a.application', function (e) {
+    var application_id = $(this).data('application');
+    var server_id = $(this).data('server');
+    var location_id = $(this).data('location');
+    console.log(application_id);
+    $panel_body.empty().append($loader);
+    get_application(location_id, server_id, application_id)
+});
+
+// click on go back button
+$('body').on('click', 'a.back', function(e){
+    var next = $(this).data('next');
+    var server_id = $(this).data('server');
+    var location_id = $(this).data('location');
+    $panel_body.empty().append($loader);
+    if(next == "location") {
+        if (location_id === undefined) {
+            get_locations();
+            flyTo(ol.proj.fromLonLat($location_vienna), function () {});
+        } else {
+            get_location(location_id);
+        }
+    } else if(next == 'server') {
+        get_server(location_id, server_id);
+    }
+})
+
+
+
+</script>
+{% endblock %}
